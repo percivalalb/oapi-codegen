@@ -250,8 +250,23 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
 	// If Ref is set on the SchemaRef, it means that this type is actually a reference to
 	// another type. We're not de-referencing, so simply use the referenced type.
 	if IsGoTypeReference(sref.Ref) {
+		ref := sref.Ref
+
+		var refsRootSchema bool
+		for _, s := range globalState.spec.Components.Schemas {
+			if s.Value == sref.Value { // the same pointer
+				refsRootSchema = true
+				break
+			}
+		}
+
+		if refsRootSchema {
+			_, flatComponent, _ := strings.Cut(ref, "#")
+			ref = "#" + flatComponent
+		}
+
 		// Convert the reference path to Go type
-		refType, err := RefPathToGoType(sref.Ref)
+		refType, err := RefPathToGoType(ref)
 		if err != nil {
 			return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
 				sref.Ref, err)
