@@ -125,7 +125,7 @@ func mergeOpenapiSchemas(s1, s2 openapi3.Schema, allOf bool) (openapi3.Schema, e
 
 	result.AllOf = append(s1.AllOf, s2.AllOf...)
 
-	if s1.Type != "" && s2.Type != "" && s1.Type != s2.Type {
+	if s1.Type != nil && s2.Type != nil && s1.Type != s2.Type {
 		return openapi3.Schema{}, errors.New("can not merge incompatible types")
 	}
 	result.Type = s1.Type
