@@ -3,7 +3,6 @@ package codegen
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -292,17 +291,18 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string, flag ...bool) (Sc
 		// https://swagger.io/docs/specification/using-ref/#syntax
 		// Something like: ../another-folder/document.json#/myElement
 		if IsRemoteReference(sref.Ref) && IsGoTypeReference(sref.Ref) {
-			log.Println("DAWEWAE", sref.FilePath.String())
-
-			file, _, _ := strings.Cut(sref.FilePath.String(), "%23")
 			_, flatComponent, _ := strings.Cut(sref.Ref, "#")
 
-			// TODO: Determine if this is the main spec
-			if file == "" {
+			componentSchema := "#" + flatComponent
 
+			// Determine if this is the root spec
+			file, _, _ := strings.Cut(sref.FilePath.String(), "%23")
+
+			if globalState.spec.FilePath.String() != file {
+				componentSchema = file + componentSchema
 			}
 
-			refType, err := RefPathToGoType(file + "#" + flatComponent)
+			refType, err := RefPathToGoType(componentSchema)
 			if err != nil {
 				return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
 					sref.Ref, err)
