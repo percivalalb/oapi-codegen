@@ -432,6 +432,14 @@ func IsWholeDocumentReference(ref string) bool {
 	return ref != "" && !strings.ContainsAny(ref, "#")
 }
 
+func IsURLReference(ref string) bool {
+	return strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") || strings.HasPrefix(ref, "//")
+}
+
+func IsRemoteReference(ref string) bool {
+	return !strings.HasPrefix(ref, "#") && !IsURLReference(ref)
+}
+
 // SwaggerUriToIrisUri converts a OpenAPI style path URI with parameters to an
 // Iris compatible path URI. We need to replace all of OpenAPI parameters with
 //

@@ -3,6 +3,8 @@ package codegen
 import (
 	"errors"
 	"fmt"
+	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -237,7 +239,11 @@ func PropertiesEqual(a, b Property) bool {
 	return a.JsonFieldName == b.JsonFieldName && a.Schema.TypeDecl() == b.Schema.TypeDecl() && a.Required == b.Required
 }
 
-func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
+func GenerateGoSchema(sref *openapi3.SchemaRef, path []string, flag ...bool) (Schema, error) {
+	var component bool
+	if len(flag) > 0 {
+		component = flag[0]
+	}
 	// Add a fallback value in case the sref is nil.
 	// i.e. the parent schema defines a type:array, but the array has
 	// no items defined. Therefore, we have at least valid Go-Code.
@@ -246,27 +252,74 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
 	}
 
 	schema := sref.Value
+	// Match global schemas:
+	if !component {
+		if IsWholeDocumentReference(sref.Ref) {
+			for name, s := range globalState.spec.Components.Schemas {
+				// Must be a reference to a .yaml file
+				if !IsWholeDocumentReference(s.Ref) {
+					continue
+				}
+
+				// TODO: compare the URLs more efficently
+				// Is the schema a ref to the same resource.
+				if s.FilePath.String() != sref.FilePath.String() {
+					continue
+				}
+
+				// Remove the path
+				// Local files have no stem. External specs do.
+				copy := *sref.FilePath
+				copy.Path = ""
+
+				// cover the remote ref to a remote reference of the schema components
+				rewrite := copy.String() + filepath.Join("#/components/schemas", name)
+
+				refType, err := RefPathToGoType(rewrite)
+				if err != nil {
+					return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
+						sref.Ref, err)
+				}
+				return Schema{
+					GoType:         refType,
+					Description:    schema.Description,
+					DefineViaAlias: true,
+					OAPISchema:     schema,
+				}, nil
+			}
+		}
+
+		// https://swagger.io/docs/specification/using-ref/#syntax
+		// Something like: ../another-folder/document.json#/myElement
+		if IsRemoteReference(sref.Ref) && IsGoTypeReference(sref.Ref) {
+			log.Println("DAWEWAE", sref.FilePath.String())
+
+			file, _, _ := strings.Cut(sref.FilePath.String(), "%23")
+			_, flatComponent, _ := strings.Cut(sref.Ref, "#")
+
+			// TODO: Determine if this is the main spec
+			if file == "" {
+
+			}
+
+			refType, err := RefPathToGoType(file + "#" + flatComponent)
+			if err != nil {
+				return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
+					sref.Ref, err)
+			}
+			return Schema{
+				GoType:         refType,
+				Description:    schema.Description,
+				DefineViaAlias: true,
+				OAPISchema:     schema,
+			}, nil
+		}
+	}
 
 	// If Ref is set on the SchemaRef, it means that this type is actually a reference to
 	// another type. We're not de-referencing, so simply use the referenced type.
 	if IsGoTypeReference(sref.Ref) {
-		ref := sref.Ref
-
-		var refsRootSchema bool
-		for _, s := range globalState.spec.Components.Schemas {
-			if s.Value == sref.Value { // the same pointer
-				refsRootSchema = true
-				break
-			}
-		}
-
-		if refsRootSchema {
-			_, flatComponent, _ := strings.Cut(ref, "#")
-			ref = "#" + flatComponent
-		}
-
-		// Convert the reference path to Go type
-		refType, err := RefPathToGoType(ref)
+		refType, err := RefPathToGoType(sref.Ref)
 		if err != nil {
 			return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
 				sref.Ref, err)
