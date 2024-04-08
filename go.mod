@@ -2,6 +2,8 @@ module github.com/deepmap/oapi-codegen/v2
 
 go 1.20
 
+replace github.com/getkin/kin-openapi v0.123.0 => github.com/percivalalb/kin-openapi v0.0.0-20240422191059-fea2a3e76d60
+
 require (
 	github.com/getkin/kin-openapi v0.123.0
 	github.com/stretchr/testify v1.9.0
