@@ -298,21 +298,22 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string, flag ...bool) (Sc
 			// Determine if this is the root spec
 			file, _, _ := strings.Cut(sref.FilePath.String(), "%23")
 
-			if globalState.spec.FilePath.String() != file {
-				componentSchema = file + componentSchema
+			if globalState.spec.FilePath.String() == file {
+				refType, err := RefPathToGoType(componentSchema)
+				if err != nil {
+					return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
+						sref.Ref, err)
+				}
+				return Schema{
+					GoType:         refType,
+					Description:    schema.Description,
+					DefineViaAlias: true,
+					OAPISchema:     schema,
+				}, nil
 			}
 
-			refType, err := RefPathToGoType(componentSchema)
-			if err != nil {
-				return Schema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
-					sref.Ref, err)
-			}
-			return Schema{
-				GoType:         refType,
-				Description:    schema.Description,
-				DefineViaAlias: true,
-				OAPISchema:     schema,
-			}, nil
+			// 				componentSchema = file + componentSchema
+
 		}
 	}
 
