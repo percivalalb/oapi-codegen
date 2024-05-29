@@ -2,7 +2,7 @@ module github.com/deepmap/oapi-codegen/v2
 
 go 1.20
 
-replace github.com/getkin/kin-openapi v0.123.0 => github.com/percivalalb/kin-openapi v0.0.0-20240422194646-830634898f6a
+replace github.com/getkin/kin-openapi v0.123.0 => github.com/percivalalb/kin-openapi v0.0.0-20240529131223-881f7a7d8bc0
 
 require (
 	github.com/getkin/kin-openapi v0.123.0
