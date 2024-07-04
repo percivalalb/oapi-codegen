@@ -323,7 +323,7 @@ func PropertiesEqual(a, b Property) bool {
 	return a.JsonFieldName == b.JsonFieldName && a.Schema.TypeDecl() == b.Schema.TypeDecl() && a.Required == b.Required
 }
 
-func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
+func GenerateGoSchema(sref *openapi3.SchemaRef, path []string, fixedField ...bool) (Schema, error) {
 	// Add a fallback value in case the sref is nil.
 	// i.e. the parent schema defines a type:array, but the array has
 	// no items defined. Therefore, we have at least valid Go-Code.
@@ -343,6 +343,26 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (Schema, error) {
 		skipOptionalPointer, err = extParsePropGoTypeSkipOptionalPointer(extension)
 		if err != nil {
 			return Schema{}, fmt.Errorf("invalid value for %q: %w", extPropGoTypeSkipOptionalPointer, err)
+		}
+	}
+
+	// Uses a vardic to maintain the same function signature and to avoid updating all invocations.
+	// Defaults to fixedField = false
+	if len(fixedField) == 0 || !fixedField[0] {
+		// If the reference is the same as one in the schema components fixed fields use the same
+		// type to avoid generation of anonymous structures as much as possible.
+		if refPath, match := openapi3.ReferencesComponentInRootDocument(globalState.spec, sref); match {
+			refType, err := RefPathToGoType(refPath)
+			if err != nil {
+				return Schema{}, fmt.Errorf("error turning reference (%s) matched %s into a Go type: %s",
+					sref.Ref, refPath, err)
+			}
+			return Schema{
+				GoType:         refType,
+				Description:    schema.Description,
+				DefineViaAlias: true,
+				OAPISchema:     schema,
+			}, nil
 		}
 	}
 
